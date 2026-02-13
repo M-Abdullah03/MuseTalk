@@ -211,6 +211,9 @@ class Avatar:
 
     def process_frames(self, res_frame_queue, video_len, skip_save_images):
         print(video_len)
+        prev_combine_frame = None  # Store previous frame for temporal smoothing
+        temporal_alpha = 0.3  # Smoothing factor: 0.3 means 30% previous + 70% current
+
         while True:
             if self.idx >= video_len - 1:
                 break
@@ -230,6 +233,15 @@ class Avatar:
             mask = self.mask_list_cycle[self.idx % (len(self.mask_list_cycle))]
             mask_crop_box = self.mask_coords_list_cycle[self.idx % (len(self.mask_coords_list_cycle))]
             combine_frame = get_image_blending(ori_frame,res_frame,bbox,mask,mask_crop_box)
+
+            # Apply temporal smoothing to reduce stuttering/jitter
+            if prev_combine_frame is not None:
+                combine_frame = cv2.addWeighted(
+                    prev_combine_frame, temporal_alpha,
+                    combine_frame, 1 - temporal_alpha,
+                    0
+                )
+            prev_combine_frame = combine_frame.copy()
 
             if skip_save_images is False:
                 cv2.imwrite(f"{self.avatar_path}/tmp/{str(self.idx).zfill(8)}.png", combine_frame)
